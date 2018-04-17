@@ -8,29 +8,25 @@
 import Foundation
 
 
-class Observer<Parameters> {
+public class Observer<Parameters> {
     
-    class Handler: CustomStringConvertible {
+    public class Handler {
         
-        weak var object: AnyObject?
+        public typealias Closure = (AnyObject) -> (Parameters) -> Bool
         
-        typealias Closure = (AnyObject) -> (Parameters) -> Bool
-        let closure: Closure
+        fileprivate weak var object: AnyObject?
+        fileprivate let closure: Closure
         
-        init(object: AnyObject, closure: @escaping Closure) {
+        fileprivate init(object: AnyObject, closure: @escaping Closure) {
             self.object = object
             self.closure = closure
         }
         
-        @discardableResult func now(_ arguments: Parameters) -> Handler {
+        @discardableResult public func now(_ arguments: Parameters) -> Handler {
             if let object = object {
                 _ = closure(object)(arguments)
             }
             return self
-        }
-        
-        var description: String {
-            return String(describing: object)
         }
     }
     
@@ -39,10 +35,10 @@ class Observer<Parameters> {
     private let queue = DispatchQueue(label: "ObserverQueue", qos: .userInitiated)
     
     
-    init(_: Parameters.Type? = nil) { }
+    public init(_: Parameters.Type? = nil) { }
     
     
-    @discardableResult func perform<T: AnyObject>(_ object: T, _ closure: @escaping (T) -> (Parameters) -> Void) -> Handler {
+    @discardableResult public func perform<T: AnyObject>(_ closure: @escaping (T) -> (Parameters) -> Void, _ object: T) -> Handler {
         
         let handler = Handler(object: object) { object in { arguments in closure(object as! T)(arguments); return true } }
         add(handler: handler)
@@ -50,7 +46,7 @@ class Observer<Parameters> {
     }
     
     
-    @discardableResult func perform(_ object: AnyObject? = nil, _ closure: @escaping (Parameters) -> Void) -> Handler {
+    @discardableResult public func perform(for object: AnyObject? = nil, _ closure: @escaping (Parameters) -> Void) -> Handler {
         
         let handler = Handler(object: object ?? self) { _ in { arguments in closure(arguments); return true } }
         add(handler: handler)
@@ -58,7 +54,7 @@ class Observer<Parameters> {
     }
     
     
-    @discardableResult func performOnce(_ object: AnyObject? = nil, _ closure: @escaping (Parameters) -> Void) -> Handler {
+    @discardableResult public func performOnce(for object: AnyObject? = nil, _ closure: @escaping (Parameters) -> Void) -> Handler {
         
         let handler = Handler(object: object ?? self) { _ in { arguments in closure(arguments); return false } }
         add(handler: handler)
@@ -66,7 +62,7 @@ class Observer<Parameters> {
     }
     
     
-    @discardableResult func performWhile(_ object: AnyObject? = nil, _ closure: @escaping (Parameters) -> Bool) -> Handler {
+    @discardableResult public func performWhile(for object: AnyObject? = nil, _ closure: @escaping (Parameters) -> Bool) -> Handler {
         
         let handler = Handler(object: object ?? self) { _ in closure }
         add(handler: handler)
@@ -74,7 +70,7 @@ class Observer<Parameters> {
     }
     
     
-    func notify(_ arguments: Parameters) {
+    public func notify(_ arguments: Parameters) {
         
         var objects = [(Handler, AnyObject)]() // Retain objects
         queue.sync {
@@ -94,7 +90,7 @@ class Observer<Parameters> {
     }
     
     
-    func add(handler: Handler) {
+    private func add(handler: Handler) {
         
         queue.sync {
             handlers.append(handler)
@@ -102,7 +98,7 @@ class Observer<Parameters> {
     }
     
     
-    func remove(handler: Handler) {
+    public func remove(handler: Handler) {
         
         queue.sync {
             handlers = handlers.filter { $0 !== handler }
@@ -110,7 +106,7 @@ class Observer<Parameters> {
     }
     
     
-    func remove(_ object: AnyObject) {
+    public func remove(_ object: AnyObject) {
         
         queue.sync {
             handlers = handlers.filter { $0.object !== object }
@@ -118,7 +114,16 @@ class Observer<Parameters> {
     }
 }
 
-extension Observer where Parameters == Void {
+
+public extension Observer where Parameters == Void {
+    
+    @discardableResult func perform<T: AnyObject>(_ closure: @escaping (T) -> () -> Void, _ object: T) -> Handler {
+
+        let handler = Handler(object: object) { object in { _ in closure(object as! T)(); return true } }
+        add(handler: handler)
+        return handler
+    }
+    
     
     func notify() {
         notify(())
@@ -126,12 +131,20 @@ extension Observer where Parameters == Void {
 }
 
 
+public extension Observer.Handler where Parameters == Void {
+    
+    func now() {
+        now(())
+    }
+}
 
-protocol Updatable: AnyObject { }
+
+
+public protocol Updatable: AnyObject { }
 
 private var onUpdateKey = "onUpdate"
 
-extension Updatable {
+public extension Updatable {
     
     var onUpdate: Observer<Void> {
         if let onUpdate = objc_getAssociatedObject(self, &onUpdateKey) as? Observer<Void> {
