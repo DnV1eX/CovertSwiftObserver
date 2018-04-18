@@ -74,7 +74,7 @@ public class Observer<Parameters> {
         
         var objects = [(Handler, AnyObject)]() // Retain objects
         queue.sync {
-            for (index, handler) in handlers.enumerated() {
+            for (index, handler) in handlers.enumerated().reversed() {
                 if let object = handler.object {
                     objects.append((handler, object))
                 } else {
@@ -82,7 +82,7 @@ public class Observer<Parameters> {
                 }
             }
         }
-        for (handler, object) in objects {
+        for (handler, object) in objects.reversed() {
             if !handler.closure(object)(arguments) {
                 remove(handler: handler)
             }
