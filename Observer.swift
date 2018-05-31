@@ -133,8 +133,16 @@ public extension Observer where Parameters == Void {
 
 public extension Observer.Handler where Parameters == Void {
     
-    func now() {
-        now(())
+    @discardableResult func now() -> Observer.Handler {
+        return now(())
+    }
+    
+    
+    @discardableResult func now(if condition: Bool) -> Observer.Handler {
+        if condition {
+            now()
+        }
+        return self
     }
 }
 
