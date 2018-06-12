@@ -38,9 +38,17 @@ public class Observer<Parameters> {
     public init(_: Parameters.Type? = nil) { }
     
     
-    @discardableResult public func perform<T: AnyObject>(_ closure: @escaping (T) -> (Parameters) -> Void, _ object: T) -> Handler {
+    @discardableResult public func perform<Object: AnyObject>(_ function: @escaping (Object) -> (Parameters) -> Void, of object: Object) -> Handler {
         
-        let handler = Handler(object: object) { object in { arguments in closure(object as! T)(arguments); return true } }
+        let handler = Handler(object: object) { object in { arguments in function(object as! Object)(arguments); return true } }
+        add(handler: handler)
+        return handler
+    }
+    
+    
+    @discardableResult public func perform<Object: AnyObject>(_ function: @escaping (Object) -> () -> Void, of object: Object) -> Handler {
+        
+        let handler = Handler(object: object) { object in { _ in function(object as! Object)(); return true } }
         add(handler: handler)
         return handler
     }
@@ -116,14 +124,6 @@ public class Observer<Parameters> {
 
 
 public extension Observer where Parameters == Void {
-    
-    @discardableResult func perform<T: AnyObject>(_ closure: @escaping (T) -> () -> Void, _ object: T) -> Handler {
-
-        let handler = Handler(object: object) { object in { _ in closure(object as! T)(); return true } }
-        add(handler: handler)
-        return handler
-    }
-    
     
     func notify() {
         notify(())
