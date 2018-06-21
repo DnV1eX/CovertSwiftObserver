@@ -38,40 +38,45 @@ public class Observer<Parameters> {
     public init(_: Parameters.Type? = nil) { }
     
     
-    @discardableResult public func perform<Object: AnyObject>(_ function: @escaping (Object) -> (Parameters) -> Void, of object: Object) -> Handler {
+    @discardableResult public func perform<Object: AnyObject>(_ function: @escaping (Object) -> (Parameters) -> Void, of object: Object, exclusively: Bool = false) -> Handler {
         
+        if exclusively { stopNotifying(object) }
         let handler = Handler(object: object) { object in { arguments in function(object as! Object)(arguments); return true } }
         add(handler: handler)
         return handler
     }
     
     
-    @discardableResult public func perform<Object: AnyObject>(_ function: @escaping (Object) -> () -> Void, of object: Object) -> Handler {
+    @discardableResult public func perform<Object: AnyObject>(_ function: @escaping (Object) -> () -> Void, of object: Object, exclusively: Bool = false) -> Handler {
         
+        if exclusively { stopNotifying(object) }
         let handler = Handler(object: object) { object in { _ in function(object as! Object)(); return true } }
         add(handler: handler)
         return handler
     }
     
     
-    @discardableResult public func perform(for object: AnyObject? = nil, _ closure: @escaping (Parameters) -> Void) -> Handler {
+    @discardableResult public func perform(for object: AnyObject? = nil, exclusively: Bool = false, _ closure: @escaping (Parameters) -> Void) -> Handler {
         
+        if exclusively { stopNotifying(object ?? self) }
         let handler = Handler(object: object ?? self) { _ in { arguments in closure(arguments); return true } }
         add(handler: handler)
         return handler
     }
     
     
-    @discardableResult public func performOnce(for object: AnyObject? = nil, _ closure: @escaping (Parameters) -> Void) -> Handler {
+    @discardableResult public func performOnce(for object: AnyObject? = nil, exclusively: Bool = false, _ closure: @escaping (Parameters) -> Void) -> Handler {
         
+        if exclusively { stopNotifying(object ?? self) }
         let handler = Handler(object: object ?? self) { _ in { arguments in closure(arguments); return false } }
         add(handler: handler)
         return handler
     }
     
     
-    @discardableResult public func performWhile(for object: AnyObject? = nil, _ closure: @escaping (Parameters) -> Bool) -> Handler {
+    @discardableResult public func performWhile(for object: AnyObject? = nil, exclusively: Bool = false, _ closure: @escaping (Parameters) -> Bool) -> Handler {
         
+        if exclusively { stopNotifying(object ?? self) }
         let handler = Handler(object: object ?? self) { _ in closure }
         add(handler: handler)
         return handler
@@ -114,7 +119,7 @@ public class Observer<Parameters> {
     }
     
     
-    public func remove(_ object: AnyObject) {
+    public func stopNotifying(_ object: AnyObject) {
         
         queue.sync {
             handlers = handlers.filter { $0.object !== object }
