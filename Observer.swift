@@ -8,102 +8,112 @@
 import Foundation
 
 
-public class Observer<Parameters> {
+public final class Observer<Parameter> {
     
-    public class Handler {
+    public final class Handler {
         
-        public typealias Closure = (AnyObject) -> (Parameters) -> Bool
+        public typealias Closure = (AnyObject) -> (Parameter) -> Bool
         
-        fileprivate weak var object: AnyObject?
+        public private(set) weak var object: AnyObject?
         fileprivate let closure: Closure
+        public fileprivate(set) var keyPath: AnyKeyPath?
+        public fileprivate(set) var id: String?
         
-        fileprivate init(object: AnyObject, closure: @escaping Closure) {
+        fileprivate init(_ object: AnyObject, closure: @escaping Closure) {
             self.object = object
             self.closure = closure
         }
         
-        @discardableResult public func now(_ arguments: Parameters) -> Handler {
+        @discardableResult public func now(_ parameter: Parameter) -> Handler {
             if let object = object {
-                _ = closure(object)(arguments)
+                _ = closure(object)(parameter)
             }
             return self
         }
     }
     
-    private var handlers = [Handler]()
+    public private(set) var handlers = [Handler]()
     
     private let queue = DispatchQueue(label: "ObserverQueue", qos: .userInitiated)
     
     
-    public init(_: Parameters.Type? = nil) { }
+    public init(_: Parameter.Type? = nil) { }
     
     
-    @discardableResult public func perform<Object: AnyObject>(_ function: @escaping (Object) -> (Parameters) -> Void, of object: Object, exclusively: Bool = false) -> Handler {
+    @discardableResult public func bind<Object: AnyObject>(_ object: Object, _ keyPath: ReferenceWritableKeyPath<Object, Parameter>) -> Handler {
         
-        if exclusively { stopNotifying(object) }
-        let handler = Handler(object: object) { object in { arguments in function(object as! Object)(arguments); return true } }
-        add(handler: handler)
+        unbind(object, keyPath)
+        let handler = Handler(object) { object in { parameter in (object as! Object)[keyPath: keyPath] = parameter; return true } }
+        handler.keyPath = keyPath
+        append(handler)
         return handler
     }
     
     
-    @discardableResult public func perform<Object: AnyObject>(_ function: @escaping (Object) -> () -> Void, of object: Object, exclusively: Bool = false) -> Handler {
+    @discardableResult public func call<Object: AnyObject>(_ object: Object, id: String? = nil, once: Bool = false, _ function: @escaping (Object) -> (Parameter) -> Void) -> Handler {
         
-        if exclusively { stopNotifying(object) }
-        let handler = Handler(object: object) { object in { _ in function(object as! Object)(); return true } }
-        add(handler: handler)
+        if let id = id { revoke(object, id: id) }
+        let handler = Handler(object) { object in { parameter in function(object as! Object)(parameter); return !once } }
+        handler.id = id
+        append(handler)
         return handler
     }
     
     
-    @discardableResult public func perform(for object: AnyObject? = nil, exclusively: Bool = false, _ closure: @escaping (Parameters) -> Void) -> Handler {
+    @discardableResult public func call<Object: AnyObject>(_ object: Object, id: String? = nil, once: Bool = false, _ function: @escaping (Object) -> () -> Void) -> Handler {
         
-        if exclusively { stopNotifying(object ?? self) }
-        let handler = Handler(object: object ?? self) { _ in { arguments in closure(arguments); return true } }
-        add(handler: handler)
+        if let id = id { revoke(object, id: id) }
+        let handler = Handler(object) { object in { _ in function(object as! Object)(); return !once } }
+        handler.id = id
+        append(handler)
         return handler
     }
     
     
-    @discardableResult public func performOnce(for object: AnyObject? = nil, exclusively: Bool = false, _ closure: @escaping (Parameters) -> Void) -> Handler {
+    @discardableResult public func run(id: String? = nil, once: Bool = false, _ closure: @escaping (Parameter) -> Void) -> Handler {
         
-        if exclusively { stopNotifying(object ?? self) }
-        let handler = Handler(object: object ?? self) { _ in { arguments in closure(arguments); return false } }
-        add(handler: handler)
+        return run(self, id: id, once: once, closure)
+    }
+    
+    @discardableResult public func run(_ object: AnyObject, id: String? = nil, once: Bool = false, _ closure: @escaping (Parameter) -> Void) -> Handler {
+        
+        if let id = id { revoke(object, id: id) }
+        let handler = Handler(object) { _ in { parameter in closure(parameter); return !once } }
+        handler.id = id
+        append(handler)
         return handler
     }
     
     
-    @discardableResult public func performWhile(for object: AnyObject? = nil, exclusively: Bool = false, _ closure: @escaping (Parameters) -> Bool) -> Handler {
+    @discardableResult public func till(id: String? = nil, _ closure: @escaping (Parameter) -> Bool) -> Handler {
         
-        if exclusively { stopNotifying(object ?? self) }
-        let handler = Handler(object: object ?? self) { _ in closure }
-        add(handler: handler)
+        return till(self, id: id, closure)
+    }
+    
+    @discardableResult public func till(_ object: AnyObject, id: String? = nil, _ closure: @escaping (Parameter) -> Bool) -> Handler {
+        
+        if let id = id { revoke(object, id: id) }
+        let handler = Handler(object) { _ in closure }
+        handler.id = id
+        append(handler)
         return handler
     }
     
     
-    public func notify(_ arguments: Parameters) {
+    public func notify(_ parameter: Parameter) {
         
         var objects = [(Handler, AnyObject)]() // Retain objects
         queue.sync {
-            for (index, handler) in handlers.enumerated().reversed() {
-                if let object = handler.object {
-                    objects.append((handler, object))
-                } else {
-                    handlers.remove(at: index)
-                }
-            }
+            objects = handlers.compactMap { handler in handler.object.map { (handler, $0) } }
+            handlers = objects.map { $0.0 }
         }
-        for (handler, object) in objects.reversed() {
-            if !handler.closure(object)(arguments) {
-                remove(handler: handler)
-            }
+        for (handler, object) in objects where !handler.closure(object)(parameter) {
+            remove(handler)
         }
     }
     
     
-    private func add(handler: Handler) {
+    public func append(_ handler: Handler) {
         
         queue.sync {
             handlers.append(handler)
@@ -111,24 +121,37 @@ public class Observer<Parameters> {
     }
     
     
-    public func remove(handler: Handler) {
+    public func remove(_ handler: Handler) {
         
         queue.sync {
-            handlers = handlers.filter { $0 !== handler }
+            handlers.removeAll { $0 === handler }
         }
     }
     
     
-    public func stopNotifying(_ object: AnyObject) {
+    public func unbind<Object: AnyObject>(_ object: Object, _ keyPath: ReferenceWritableKeyPath<Object, Parameter>) {
         
         queue.sync {
-            handlers = handlers.filter { $0.object !== object }
+            handlers.removeAll { $0.object === object && $0.keyPath == keyPath }
+        }
+    }
+    
+    
+    public func revoke(id: String? = nil) {
+        
+        revoke(self, id: id)
+    }
+
+    public func revoke(_ object: AnyObject, id: String? = nil) {
+        
+        queue.sync {
+            handlers.removeAll { $0.object === object && $0.keyPath == nil && $0.id == id }
         }
     }
 }
 
 
-public extension Observer where Parameters == Void {
+public extension Observer where Parameter == Void {
     
     func notify() {
         notify(())
@@ -136,7 +159,7 @@ public extension Observer where Parameters == Void {
 }
 
 
-public extension Observer.Handler where Parameters == Void {
+public extension Observer.Handler where Parameter == Void {
     
     @discardableResult func now() -> Observer.Handler {
         return now(())
