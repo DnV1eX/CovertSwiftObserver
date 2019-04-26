@@ -40,45 +40,69 @@ public final class Observer<Parameter> {
     public init(_: Parameter.Type? = nil) { }
     
     
-    @discardableResult public func bind<Object: AnyObject>(_ object: Object, _ keyPath: ReferenceWritableKeyPath<Object, Parameter>) -> Handler {
+    @discardableResult public func bind<Object: AnyObject>(_ object: Object, till: @autoclosure @escaping () -> Bool = true, once: @autoclosure @escaping () -> Bool = false, _ keyPath: ReferenceWritableKeyPath<Object, Parameter>) -> Handler {
         
         unbind(object, keyPath)
-        let handler = Handler(object) { object in { parameter in (object as! Object)[keyPath: keyPath] = parameter; return true } }
+        let handler = Handler(object) { object in
+            { parameter in
+                guard till() else { return once() }
+                (object as! Object)[keyPath: keyPath] = parameter
+                return !once()
+            }
+        }
         handler.keyPath = keyPath
         append(handler)
         return handler
     }
     
     
-    @discardableResult public func call<Object: AnyObject>(_ object: Object, id: String? = nil, once: Bool = false, _ function: @escaping (Object) -> (Parameter) -> Void) -> Handler {
+    @discardableResult public func call<Object: AnyObject>(_ object: Object, id: String? = nil, till: @autoclosure @escaping () -> Bool = true, once: @autoclosure @escaping () -> Bool = false, _ function: @escaping (Object) -> (Parameter) -> Void) -> Handler {
         
         if let id = id { revoke(object, id: id) }
-        let handler = Handler(object) { object in { parameter in function(object as! Object)(parameter); return !once } }
+        let handler = Handler(object) { object in
+            { parameter in
+                guard till() else { return once() }
+                function(object as! Object)(parameter)
+                return !once()
+            }
+        }
         handler.id = id
         append(handler)
         return handler
     }
     
     
-    @discardableResult public func call<Object: AnyObject>(_ object: Object, id: String? = nil, once: Bool = false, _ function: @escaping (Object) -> () -> Void) -> Handler {
+    @discardableResult public func call<Object: AnyObject>(_ object: Object, id: String? = nil, till: @autoclosure @escaping () -> Bool = true, once: @autoclosure @escaping () -> Bool = false, _ function: @escaping (Object) -> () -> Void) -> Handler {
         
         if let id = id { revoke(object, id: id) }
-        let handler = Handler(object) { object in { _ in function(object as! Object)(); return !once } }
+        let handler = Handler(object) { object in
+            { _ in
+                guard till() else { return once() }
+                function(object as! Object)()
+                return !once()
+            }
+        }
         handler.id = id
         append(handler)
         return handler
     }
     
     
-    @discardableResult public func run(id: String? = nil, once: Bool = false, _ closure: @escaping (Parameter) -> Void) -> Handler {
+    @discardableResult public func run(id: String? = nil, till: @autoclosure @escaping () -> Bool = true, once: @autoclosure @escaping () -> Bool = false, _ closure: @escaping (Parameter) -> Void) -> Handler {
         
-        return run(self, id: id, once: once, closure)
+        return run(self, id: id, till: till(), once: once(), closure)
     }
     
-    @discardableResult public func run(_ object: AnyObject, id: String? = nil, once: Bool = false, _ closure: @escaping (Parameter) -> Void) -> Handler {
+    @discardableResult public func run(_ object: AnyObject, id: String? = nil, till: @autoclosure @escaping () -> Bool = true, once: @autoclosure @escaping () -> Bool = false, _ closure: @escaping (Parameter) -> Void) -> Handler {
         
         if let id = id { revoke(object, id: id) }
-        let handler = Handler(object) { _ in { parameter in closure(parameter); return !once } }
+        let handler = Handler(object) { _ in
+            { parameter in
+                guard till() else { return once() }
+                closure(parameter)
+                return !once()
+            }
+        }
         handler.id = id
         append(handler)
         return handler

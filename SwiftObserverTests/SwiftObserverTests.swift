@@ -16,8 +16,11 @@ class SwiftObserverTests: XCTestCase {
         var state: Any? {
             didSet {
                 count += 1
+                onChangeState.notify(state)
             }
         }
+        let onChangeState = Observer(Any?.self)
+        
         func void() {
             state = nil
         }
@@ -32,20 +35,21 @@ class SwiftObserverTests: XCTestCase {
         }
     }
     
+    var object: Object!
+
     
     override func setUp() {
         super.setUp()
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+        object = Object()
     }
     
     override func tearDown() {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+        object = nil
         super.tearDown()
     }
     
     
     func testBasics() {
-        let object = Object()
         
         let int = Observer(Int.self)
         int.call(object, Object.int)
@@ -155,7 +159,7 @@ class SwiftObserverTests: XCTestCase {
         str.notify("Revoke")
         XCTAssertEqual(object.state as? String, "")
         XCTAssertEqual(object.count, 5)
-        str.till(object) { [unowned object] str in object.state = str; return str.count < 2 }
+        str.till(object) { [unowned object = object!] s in object.state = s; return s.count < 2 }
         str.notify("A")
         XCTAssertEqual(object.state as? String, "A")
         XCTAssertEqual(object.count, 6)
@@ -182,10 +186,46 @@ class SwiftObserverTests: XCTestCase {
     }
     
     
-    func testPerformanceExample() {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
+    func testRetention() {
+        
+        weak var obj = object
+        ;{
+            unowned let object = self.object!
+            object.onChangeState.run { _ in _ = object }
+        }()
+        object = nil
+        XCTAssertNil(obj)
+        
+        let expectation = self.expectation(description: "Retention")
+        expectation.expectedFulfillmentCount = 2
+        object = Object()
+        let object = self.object!
+        obj = object
+        weak var sot = self
+        object.onChangeState.call(expectation, till: obj === sot?.object, XCTestExpectation.fulfill)
+        object.state = 1
+        object.state = 2
+        self.object = Object()
+        object.state = 3
+        self.object = object
+        object.state = 4
+        wait(for: [expectation], timeout: 1)
+    }
+    
+    
+    func testPerformance() {
+        
+        let observer = Observer(Void.self)
+        measure {
+            let expectation = self.expectation(description: "Performance")
+            expectation.expectedFulfillmentCount = 1000
+            for _ in 0..<expectation.expectedFulfillmentCount {
+                observer.call(object, Object.void)
+            }
+            object.onChangeState.call(expectation, XCTestExpectation.fulfill)
+            observer.notify()
+            observer.revoke(object)
+            wait(for: [expectation], timeout: 1)
         }
     }
     
