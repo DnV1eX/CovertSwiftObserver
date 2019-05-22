@@ -1,6 +1,7 @@
 # SwiftObserver
 #### TODO:
-- [ ] Default __Parameter__ to __Void__ (when supported in Swift)
 - [ ] Pass __Object__ as `run` closure first argument
-- [ ] `bind` to __Parameter__ with __KeyPath__ (if supported by generics)
+- [ ] `bind` __Parameter__ properties using __KeyPath__ (if supported by generics)
+- [ ] `bind` optional __Parameter__ with default value
 - [ ] Try to refactor _till_ and _once_ parameters as __Handler__ mutating functions
+- [ ] Default __Parameter__ to __Void__ (when supported in Swift)
