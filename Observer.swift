@@ -56,9 +56,9 @@ public final class Observer<Parameter> {
     }
     
     
-    @discardableResult public func call<Object: AnyObject>(_ object: Object, id: String? = nil, till: @autoclosure @escaping () -> Bool = true, once: @autoclosure @escaping () -> Bool = false, _ function: @escaping (Object) -> (Parameter) -> Void) -> Handler {
+    @discardableResult public func call<Object: AnyObject>(_ object: Object, id: String? = nil, solo: Bool = false, till: @autoclosure @escaping () -> Bool = true, once: @autoclosure @escaping () -> Bool = false, _ function: @escaping (Object) -> (Parameter) -> Void) -> Handler {
         
-        if let id = id { revoke(object, id: id) }
+        revoke(object, id, solo)
         let handler = Handler(object) { object in
             { parameter in
                 guard till() else { return once() }
@@ -72,9 +72,9 @@ public final class Observer<Parameter> {
     }
     
     
-    @discardableResult public func call<Object: AnyObject>(_ object: Object, id: String? = nil, till: @autoclosure @escaping () -> Bool = true, once: @autoclosure @escaping () -> Bool = false, _ function: @escaping (Object) -> () -> Void) -> Handler {
+    @discardableResult public func call<Object: AnyObject>(_ object: Object, id: String? = nil, solo: Bool = false, till: @autoclosure @escaping () -> Bool = true, once: @autoclosure @escaping () -> Bool = false, _ function: @escaping (Object) -> () -> Void) -> Handler {
         
-        if let id = id { revoke(object, id: id) }
+        revoke(object, id, solo)
         let handler = Handler(object) { object in
             { _ in
                 guard till() else { return once() }
@@ -93,9 +93,9 @@ public final class Observer<Parameter> {
         return run(self, id: id, till: till(), once: once(), closure)
     }
     
-    @discardableResult public func run(_ object: AnyObject, id: String? = nil, till: @autoclosure @escaping () -> Bool = true, once: @autoclosure @escaping () -> Bool = false, _ closure: @escaping (Parameter) -> Void) -> Handler {
+    @discardableResult public func run(_ object: AnyObject, id: String? = nil, solo: Bool = false, till: @autoclosure @escaping () -> Bool = true, once: @autoclosure @escaping () -> Bool = false, _ closure: @escaping (Parameter) -> Void) -> Handler {
         
-        if let id = id { revoke(object, id: id) }
+        revoke(object, id, solo)
         let handler = Handler(object) { _ in
             { parameter in
                 guard till() else { return once() }
@@ -114,9 +114,9 @@ public final class Observer<Parameter> {
         return till(self, id: id, closure)
     }
     
-    @discardableResult public func till(_ object: AnyObject, id: String? = nil, _ closure: @escaping (Parameter) -> Bool) -> Handler {
+    @discardableResult public func till(_ object: AnyObject, id: String? = nil, solo: Bool = false, _ closure: @escaping (Parameter) -> Bool) -> Handler {
         
-        if let id = id { revoke(object, id: id) }
+        revoke(object, id, solo)
         let handler = Handler(object) { _ in closure }
         handler.id = id
         append(handler)
@@ -161,11 +161,6 @@ public final class Observer<Parameter> {
     }
     
     
-    public func revoke() {
-        
-        revoke(self)
-    }
-
     public func revoke(id: String) {
         
         queue.sync {
@@ -173,10 +168,28 @@ public final class Observer<Parameter> {
         }
     }
 
+    public func revoke() {
+        
+        revoke(self)
+    }
+    
     public func revoke(_ object: AnyObject, id: String? = nil) {
         
         queue.sync {
             handlers.removeAll { $0.object === object && $0.keyPath == nil && $0.id == id }
+        }
+    }
+    
+    private func revoke(_ object: AnyObject, _ id: String?, _ solo: Bool) {
+        
+        if solo {
+            if let id = id {
+                revoke(id: id)
+            } else {
+                revoke(object)
+            }
+        } else if let id = id {
+            revoke(object, id: id)
         }
     }
 }
