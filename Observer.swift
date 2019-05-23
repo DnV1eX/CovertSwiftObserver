@@ -161,9 +161,16 @@ public final class Observer<Parameter> {
     }
     
     
-    public func revoke(id: String? = nil) {
+    public func revoke() {
         
-        revoke(self, id: id)
+        revoke(self)
+    }
+
+    public func revoke(id: String) {
+        
+        queue.sync {
+            handlers.removeAll { $0.id == id }
+        }
     }
 
     public func revoke(_ object: AnyObject, id: String? = nil) {
