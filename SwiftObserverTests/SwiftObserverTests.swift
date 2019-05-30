@@ -13,7 +13,7 @@ class SwiftObserverTests: XCTestCase {
     
     class Object {
         var count = 0
-        var state: Any? {
+        var state: Any! {
             didSet {
                 count += 1
                 onChangeState.notify(state)
@@ -67,8 +67,8 @@ class SwiftObserverTests: XCTestCase {
         int.notify(4)
         XCTAssertEqual(object.state as? Int, 3)
         XCTAssertEqual(object.count, 4)
-        int.call(object, id: "Int", Object.int)
-        int.call(object, id: "Int", Object.int)
+        int.call(object, group: "Int", Object.int)
+        int.call(object, group: "Int", Object.int)
         int.notify(5)
         XCTAssertEqual(object.state as? Int, 5)
         XCTAssertEqual(object.count, 5)
@@ -76,7 +76,7 @@ class SwiftObserverTests: XCTestCase {
         int.notify(6)
         XCTAssertEqual(object.state as? Int, 6)
         XCTAssertEqual(object.count, 6)
-        int.revoke(object, id: "Int")
+        int.revoke("Int")
         int.notify(7)
         XCTAssertEqual(object.state as? Int, 6)
         XCTAssertEqual(object.count, 6)
@@ -88,8 +88,7 @@ class SwiftObserverTests: XCTestCase {
         XCTAssertNil(object.state)
         XCTAssertEqual(object.count, 1)
         void.revoke()
-        void.revoke(id: "Void")
-        void.revoke(object, id: "Void")
+        void.revoke("Void")
         void.notify()
         XCTAssertEqual(object.count, 2)
         void.revoke(object)
@@ -99,44 +98,56 @@ class SwiftObserverTests: XCTestCase {
         void.notify()
         void.notify()
         XCTAssertEqual(object.count, 3)
-        void.call(object, id: "Void", Object.void)
-        void.call(object, id: "Void", Object.void)
+        void.call(object, group: "Void", Object.void)
+        void.call(object, group: "Void", Object.void)
         void.notify()
         XCTAssertEqual(object.count, 4)
         void.revoke()
         void.revoke(object)
-        void.revoke(Object(), id: "Void")
+        void.revoke(Object())
+        void.revoke("void")
         void.notify()
         XCTAssertEqual(object.count, 5)
-        void.revoke(object, id: "Void")
+        void.revoke("Void")
         void.notify()
         XCTAssertEqual(object.count, 5)
-        void.call(object, id: "Void", Object.void)
-        void.revoke(id: "Void")
+        void.call(object, group: "Void", Object.void)
+        void.revoke("Void")
         void.notify()
         XCTAssertEqual(object.count, 5)
+        void.run(object) { $0.count = 0 }
+        void.notify()
+        XCTAssertEqual(object.count, 0)
+        void.revoke(object)
 
         object.count = 0
-        let any = Observer(Any?.self)
-        any.bind(object, \.state)
-        any.notify("Test")
+        let optAny = Observer(Any?.self)
+        optAny.bind(object, \.state)
+        optAny.notify("Test")
         XCTAssertEqual(object.state as? String, "Test")
         XCTAssertEqual(object.count, 1)
-        any.notify(nil)
+        optAny.notify(nil)
         XCTAssertNil(object.state)
         XCTAssertEqual(object.count, 2)
-        any.bind(object, \.state)
-        any.notify("")
+        optAny.bind(object, \.state)
+        optAny.notify("")
         XCTAssertEqual(object.state as? String, "")
         XCTAssertEqual(object.count, 3)
-        any.revoke(object)
-        any.notify(42)
+        optAny.revoke(object)
+        optAny.notify(42)
         XCTAssertEqual(object.state as? Int, 42)
         XCTAssertEqual(object.count, 4)
-        any.unbind(object, \.state)
-        any.notify(nil)
+        optAny.unbind(object, \.state)
+        optAny.notify(nil)
         XCTAssertNotNil(object.state)
         XCTAssertEqual(object.count, 4)
+
+        object.state = nil
+        object.count = 0
+        let any = Observer(Any.self)
+        any.run(object) { $0.state = $1 }.now("T")//bind(object, \.state).now("T")
+        XCTAssertEqual(object.state as? String, "T")
+        XCTAssertEqual(object.count, 1)
 
         object.count = 0
         let str = Observer(String.self)
@@ -187,6 +198,58 @@ class SwiftObserverTests: XCTestCase {
         tuple.notify(("E", "F"))
         XCTAssertEqual(object.state as? String, "CD")
         XCTAssertEqual(object.count, 2)
+    }
+    
+    
+    func testGrouping() {
+        var v = 0
+        
+        let o1 = Observer()
+        let o2 = Observer()
+        let o3 = Observer()
+        let o4 = Observer(group: "G")
+        let o5 = Observer(group: "G")
+        let o6 = Observer(group: "G")
+        
+        o1.run { v += 1 }
+        o2.run(group: "G") { v += 10 }
+        o3.run(group: "G") { v += 100 }
+        o4.run { v += 1000 }
+        o5.run(group: "G") { v += 10000 }
+        o6.run(group: "G") { v += 100000 }
+
+        o1.notify()
+        XCTAssertEqual(v, 1)
+        o2.notify()
+        XCTAssertEqual(v, 11)
+        o3.notify()
+        XCTAssertEqual(v, 111)
+        o4.notify()
+        XCTAssertEqual(v, 1111)
+        o5.notify()
+        XCTAssertEqual(v, 1111)
+        o6.notify()
+        XCTAssertEqual(v, 101111)
+
+        o1.run { v += 2 }
+        o2.run { v += 20 }
+        o3.run(group: "G") { v += 200 }
+        o4.run { v += 2000 }
+        o5.run { v += 20000 }
+        o6.run(group: "G") { v += 200000 }
+        
+        o1.notify()
+        XCTAssertEqual(v, 101114)
+        o2.notify()
+        XCTAssertEqual(v, 101144)
+        o3.notify()
+        XCTAssertEqual(v, 101344)
+        o4.notify()
+        XCTAssertEqual(v, 104344)
+        o5.notify()
+        XCTAssertEqual(v, 124344)
+        o6.notify()
+        XCTAssertEqual(v, 324344)
     }
     
     
