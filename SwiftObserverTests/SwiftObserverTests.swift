@@ -94,7 +94,7 @@ class SwiftObserverTests: XCTestCase {
         void.revoke(object)
         void.notify()
         XCTAssertEqual(object.count, 2)
-        void.call(object, once: true, Object.void)
+        void.call(object, Object.void).once()
         void.notify()
         void.notify()
         XCTAssertEqual(object.count, 3)
@@ -174,7 +174,7 @@ class SwiftObserverTests: XCTestCase {
         str.notify("Revoke")
         XCTAssertEqual(object.state as? String, "")
         XCTAssertEqual(object.count, 5)
-        str.till(object) { [unowned object = object!] s in object.state = s; return s.count < 2 }
+        str.run(object) { $0.state = $1 }.until { $0.count < 3 }
         str.notify("A")
         XCTAssertEqual(object.state as? String, "A")
         XCTAssertEqual(object.count, 6)
@@ -269,7 +269,7 @@ class SwiftObserverTests: XCTestCase {
         let object = self.object!
         obj = object
         weak var sot = self
-        object.onChangeState.call(expectation, till: obj === sot?.object, XCTestExpectation.fulfill)
+        object.onChangeState.call(expectation, XCTestExpectation.fulfill).until { obj === sot?.object }
         object.state = 1
         object.state = 2
         self.object = Object()
