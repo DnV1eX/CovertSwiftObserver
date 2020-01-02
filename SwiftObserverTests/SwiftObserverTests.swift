@@ -6,14 +6,22 @@
 //
 
 import XCTest
-@testable import SwiftObserver
+import SwiftObserver
 
 
 class SwiftObserverTests: XCTestCase {
     
-    class Object {
-        var count = 0
-        var state: Any! {
+    class Object: Equatable {
+        
+        static func == (lhs: SwiftObserverTests.Object, rhs: SwiftObserverTests.Object) -> Bool {
+            lhs.count == rhs.count
+        }
+        
+        @ObservedSetter var count = 0
+        
+        @ObservedUpdate var sub: Object!
+        
+        @Observed var state: Any! {
             didSet {
                 count += 1
                 onChangeState.notify(state)
@@ -296,4 +304,32 @@ class SwiftObserverTests: XCTestCase {
         }
     }
     
+    
+    func testWrapper() {
+        
+        var count = 0
+        var state1: String?, state2: String?, oldValue: String?, newValue: String?
+        object.$count.onSet.run { count = $0 }
+        object.$state.willSet { state1 = $0 as? String; newValue = $1 as? String }
+        object.$state.didSet { state2 = $1 as? String; oldValue = $0 as? String }
+        object.state = "test"//str(s: "test")
+        XCTAssertEqual(count, 1)
+        XCTAssertEqual(state1, nil)
+        XCTAssertEqual(state2, "test")
+        XCTAssertEqual(newValue, "test")
+        XCTAssertEqual(oldValue, nil)
+        
+        let o1 = Object(), o2 = Object(), o3 = Object()
+        var o: Object?
+        o1.count = 1
+        XCTAssertNotEqual(o1, o2)
+        XCTAssertEqual(o2, o3)
+        object.$sub.onUpdate.run { o = $0 }
+        object.sub = o1
+        XCTAssert(o === o1)
+        object.sub = o2
+        XCTAssert(o === o2)
+        object.sub = o3
+        XCTAssert(o === o2)
+    }
 }
