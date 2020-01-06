@@ -305,7 +305,7 @@ class SwiftObserverTests: XCTestCase {
     }
     
     
-    func testWrapper() {
+    func testWrappers() {
         
         var count = 0
         var state1: String?, state2: String?, oldValue: String?, newValue: String?
@@ -331,5 +331,16 @@ class SwiftObserverTests: XCTestCase {
         XCTAssert(o === o2)
         object.sub = o3
         XCTAssert(o === o2)
+    }
+    
+    
+    func testQueue() {
+        
+        let expectation = XCTestExpectation(description: "Queue")
+        let observer = Observer()
+        let handler = observer.run { XCTAssert(Thread.isMainThread); expectation.fulfill() }.on(.main).now()
+        DispatchQueue.global().async { XCTAssertFalse(Thread.isMainThread); observer.notify() }
+        wait(for: [expectation], timeout: 1)
+        XCTAssertEqual(handler.count, 2)
     }
 }

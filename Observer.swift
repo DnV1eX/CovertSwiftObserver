@@ -85,6 +85,21 @@ public final class Observer<Parameter>: AnyObserver {
         }
         
         
+        @discardableResult public func on(_ queue: DispatchQueue) -> Handler {
+            
+            let closure = self.closure
+            self.closure = { object in
+                { parameter in
+                    queue.async {
+                        _ = closure(object)(parameter)
+                    }
+                    return true
+                }
+            }
+            return self
+        }
+        
+        
         @discardableResult public func until(_ condition: @escaping (Parameter, Int) -> Bool) -> Handler {
             
             let closure = self.closure
@@ -95,7 +110,7 @@ public final class Observer<Parameter>: AnyObserver {
             }
             return self
         }
-        
+
         @discardableResult public func until(_ condition: @escaping (Parameter) -> Bool) -> Handler {
             
             return until { parameter, _ in condition(parameter) }
@@ -126,7 +141,7 @@ public final class Observer<Parameter>: AnyObserver {
     
     public private(set) var handlers = [Handler]()
     
-    private let queue = DispatchQueue(label: "ObserverQueue", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "ObserverQueue", qos: .userInteractive)
     
     
     public init(_: Parameter.Type? = nil, group: Group? = nil) {
@@ -222,6 +237,7 @@ public final class Observer<Parameter>: AnyObserver {
         
         queue.sync {
             handlers.append(handler)
+            handlers.removeAll { $0.object == nil }
         }
     }
     
