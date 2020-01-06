@@ -209,7 +209,7 @@ class SwiftObserverTests: XCTestCase {
     }
     
     
-    func testGrouping() {
+    func testGroups() {
         var v = 0
         
         let o1 = Observer()
@@ -342,5 +342,48 @@ class SwiftObserverTests: XCTestCase {
         DispatchQueue.global().async { XCTAssertFalse(Thread.isMainThread); observer.notify() }
         wait(for: [expectation], timeout: 1)
         XCTAssertEqual(handler.count, 2)
+    }
+    
+    
+    func testRemoval() {
+        
+        let o1 = Observer()
+        let o2 = Observer(group: "1")
+        let o3 = Observer(group: "2")
+        let o4 = Observer(group: "2")
+        let h1 = o1.run({ })
+        XCTAssertEqual(o1.handlers.count, 1)
+        o2.append(h1)
+        XCTAssertEqual(o2.handlers.count, 1)
+        o3.append(h1)
+        XCTAssertEqual(o3.handlers.count, 1)
+        o4.append(h1)
+        XCTAssertEqual(o4.handlers.count, 1)
+        h1.remove()
+        XCTAssertEqual(o1.handlers.count, 0)
+        XCTAssertEqual(o2.handlers.count, 0)
+        XCTAssertEqual(o3.handlers.count, 0)
+        XCTAssertEqual(o4.handlers.count, 0)
+        
+        o1.run({ })
+        o1.run({ })
+        XCTAssertEqual(o1.handlers.count, 2)
+        o1.revoke()
+        XCTAssertEqual(o1.handlers.count, 0)
+        o1.run(group: "A", { })
+        o1.run(group: "A", { })
+        XCTAssertEqual(o1.handlers.count, 1)
+        o1.run(group: "B", { })
+        o1.run(group: "B", { })
+        o2.run(group: "B", { })
+        o2.run(group: "B", { })
+        o3.run(group: "B", { })
+        o3.run(group: "B", { })
+        o4.run(group: "B", { })
+        o4.run(group: "B", { })
+        XCTAssertEqual(o1.handlers.count, 2)
+        XCTAssertEqual(o2.handlers.count, 1)
+        XCTAssertEqual(o3.handlers.count, 0)
+        XCTAssertEqual(o4.handlers.count, 1)
     }
 }

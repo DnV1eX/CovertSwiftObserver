@@ -56,12 +56,11 @@ public class AnyObserver {
     
     fileprivate init(_ group: Group?) {
         self.group = group
-        if group != nil {
-            hash.add(self)
-        }
+        hash.add(self)
     }
     
-    fileprivate func revoke(_ group: Group) { }
+    fileprivate func remove(_ handler: AnyObject) { preconditionFailure() }
+    fileprivate func revoke(_ group: Group) { preconditionFailure() }
 }
 
 
@@ -130,11 +129,20 @@ public final class Observer<Parameter>: AnyObserver {
         
         @discardableResult public func now(_ parameter: Parameter) -> Handler {
             
-            if let object = object {
-                _ = closure(object)(parameter)
+            if let object = object, closure(object)(parameter) {
                 count += 1
+            } else {
+                remove()
             }
             return self
+        }
+        
+        
+        public func remove() {
+            
+            hash.allObjects.forEach {
+                $0.remove(self)
+            }
         }
     }
     
@@ -204,7 +212,7 @@ public final class Observer<Parameter>: AnyObserver {
         
         return run(self, group: group) { _, parameter in closure(parameter) }
     }
-
+    /*
     @discardableResult public func run(_ object: AnyObject, group: Group? = nil) -> Handler {
         
         return run(object, group: group) { _, _ in }
@@ -214,7 +222,7 @@ public final class Observer<Parameter>: AnyObserver {
         
         return run(self, group: group) { _, _ in }
     }
-    
+    */
     
     public func notify(_ parameter: Parameter) {
         
@@ -227,7 +235,7 @@ public final class Observer<Parameter>: AnyObserver {
             if handler.closure(object)(parameter) {
                 handler.count += 1
             } else {
-                remove(handler)
+                handler.remove()
             }
         }
     }
@@ -241,6 +249,13 @@ public final class Observer<Parameter>: AnyObserver {
         }
     }
     
+    
+    fileprivate override func remove(_ handler: AnyObject) {
+        
+        if let handler = handler as? Handler {
+            remove(handler)
+        }
+    }
     
     public func remove(_ handler: Handler) {
         
