@@ -358,7 +358,7 @@ public extension Updatable {
 
 
 
-@propertyWrapper public struct Observed<Parameter> {
+@propertyWrapper public final class Observed<Parameter> {
     
     public var wrappedValue: Parameter {
         willSet {
@@ -369,7 +369,7 @@ public extension Updatable {
         }
     }
     
-    public var projectedValue: Self { self }
+    public var projectedValue: Observed { self }
     
     public init(wrappedValue: Parameter) {
         self.wrappedValue = wrappedValue
@@ -388,7 +388,7 @@ public extension Updatable {
 }
 
 
-@propertyWrapper public struct ObservedSetter<Parameter> {
+@propertyWrapper public final class ObservedSetter<Parameter> {
     
     public var wrappedValue: Parameter {
         didSet {
@@ -396,7 +396,7 @@ public extension Updatable {
         }
     }
     
-    public var projectedValue: Self { self }
+    public var projectedValue: ObservedSetter { self }
     
     public init(wrappedValue: Parameter) {
         self.wrappedValue = wrappedValue
@@ -406,7 +406,7 @@ public extension Updatable {
 }
 
 
-@propertyWrapper public struct ObservedUpdate<Parameter: Equatable> {
+@propertyWrapper public final class ObservedUpdate<Parameter: Equatable> {
     
     public var wrappedValue: Parameter {
         didSet {
@@ -416,7 +416,7 @@ public extension Updatable {
         }
     }
     
-    public var projectedValue: Self { self }
+    public var projectedValue: ObservedUpdate { self }
     
     public init(wrappedValue: Parameter) {
         self.wrappedValue = wrappedValue
