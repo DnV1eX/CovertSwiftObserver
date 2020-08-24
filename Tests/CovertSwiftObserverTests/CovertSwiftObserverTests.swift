@@ -1,19 +1,19 @@
 //
-//  SwiftObserverTests.swift
-//  SwiftObserverTests
+//  CovertSwiftObserverTests.swift
+//  CovertSwiftObserverTests
 //
 //  Created by Alexey Demin on 2018-04-13.
 //
 
 import XCTest
-import SwiftObserver
+import CovertSwiftObserver
 
 
-class SwiftObserverTests: XCTestCase {
+class CovertSwiftObserverTests: XCTestCase {
     
     class Object: Equatable {
         
-        static func == (lhs: SwiftObserverTests.Object, rhs: SwiftObserverTests.Object) -> Bool {
+        static func == (lhs: Object, rhs: Object) -> Bool {
             lhs.count == rhs.count
         }
         
