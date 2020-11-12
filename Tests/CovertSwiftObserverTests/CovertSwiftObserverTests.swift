@@ -386,4 +386,17 @@ class CovertSwiftObserverTests: XCTestCase {
         XCTAssertEqual(o3.handlers.count, 0)
         XCTAssertEqual(o4.handlers.count, 1)
     }
+    
+    
+    func testControl() {
+        
+        weak var button: UIButton?
+        var b: UIButton? = UIButton()
+        b?.onEvent(.touchDown).run { _ in }
+        XCTAssertEqual(b?.actions(forTarget: b, forControlEvent: .touchDown), ["onEvent1WithSender:forEvent:"])
+        XCTAssertNil(b?.actions(forTarget: b, forControlEvent: .touchUpInside))
+        button = b
+        b = nil
+        XCTAssertNil(button)
+    }
 }
