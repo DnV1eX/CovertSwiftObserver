@@ -18,25 +18,29 @@
 //  limitations under the License.
 //
 
-#if canImport(UIKit)
+#if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst)
 import UIKit
 
 
-extension UIControl {
+public protocol Control: UIControl { }
+
+public extension Control {
     
-    public func onEvent(_ event: UIControl.Event) -> Observer<UIEvent> {
+    func onEvent(_ event: UIControl.Event) -> Observer<(sender: Self, event: UIEvent?)> {
         
         let selector = Selector(("onEvent\(event.rawValue)WithSender:forEvent:"))
-        if let onEvent = objc_getAssociatedObject(self, sel_getName(selector)) as? Observer<UIEvent> {
+        if let onEvent = objc_getAssociatedObject(self, sel_getName(selector)) as? Observer<(sender: Self, event: UIEvent?)> {
             return onEvent
         } else {
-            let onEvent = Observer(UIEvent.self)
+            let onEvent = Observer<(sender: Self, event: UIEvent?)>()
             objc_setAssociatedObject(self, sel_getName(selector), onEvent, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-            let block: @convention(block) (Selector, Self, UIEvent) -> Void = { [unowned self] in self.onEvent(event).notify($2) }
-            class_addMethod(Self.self, selector, imp_implementationWithBlock(block), "v@:")
+            let block: @convention(block) (AnyObject, UIControl, UIEvent?) -> Void = { [unowned self] in self.onEvent(event).notify(($1 as! Self, $2)) }
+            class_addMethod(Self.self, selector, imp_implementationWithBlock(block), "v@:@@")
             addTarget(self, action: selector, for: event)
             return onEvent
         }
     }
 }
+
+extension UIControl: Control { }
 #endif

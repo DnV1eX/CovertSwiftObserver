@@ -390,6 +390,7 @@ class CovertSwiftObserverTests: XCTestCase {
     
     func testControl() {
         
+        #if os(iOS) || os(tvOS) || targetEnvironment(macCatalyst)
         weak var button: UIButton?
         var b: UIButton? = UIButton()
         b?.onEvent(.touchDown).run { _ in }
@@ -398,5 +399,6 @@ class CovertSwiftObserverTests: XCTestCase {
         button = b
         b = nil
         XCTAssertNil(button)
+        #endif
     }
 }
