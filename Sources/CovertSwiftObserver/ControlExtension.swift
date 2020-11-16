@@ -34,7 +34,7 @@ public extension Control {
         } else {
             let onEvent = Observer<(sender: Self, event: UIEvent?)>()
             objc_setAssociatedObject(self, sel_getName(selector), onEvent, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-            let block: @convention(block) (AnyObject, UIControl, UIEvent?) -> Void = { [unowned self] in self.onEvent(event).notify(($1 as! Self, $2)) }
+            let block: @convention(block) (AnyObject, UIControl, UIEvent?) -> Void = { ($1 as! Self).onEvent(event).notify(($1 as! Self, $2)) }
             class_addMethod(Self.self, selector, imp_implementationWithBlock(block), "v@:@@")
             addTarget(self, action: selector, for: event)
             return onEvent
